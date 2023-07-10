@@ -251,12 +251,11 @@ public class Node  {
         synchronized(memPoolLock){
             if(Utils.containsTransactionInMap(transaction, mempool)) return;
 
-            if(DEBUG_LEVEL == 1){System.out.println("Node " + myAddress.getPort() + ": verifyTransaction: " + 
+            if(DEBUG_LEVEL == 1){System.out.println("Node " + myAddress.getPort() + ": verifyTransaction: " + transaction.getUID() + ", blockchain size: " + blockchain.size());}
 
-            transaction.getUID() + ", blockchain size: " + blockchain.size());}
             LinkedList<Block> clonedBlockchain = new LinkedList<>();
 
-
+            if(blockchain == null) System.out.println("blockchain is null :(");
             clonedBlockchain.addAll(blockchain);
             for(Block block : clonedBlockchain){
                 if(block.getTxList().containsKey(getSHAString(transaction.getUID()))){
@@ -746,7 +745,7 @@ public class Node  {
 
             for(String hash : quorumBlock.getTxList().keySet()){
                 PtTransaction transaction = (PtTransaction) quorumBlock.getTxList().get(hash);
-                vrs.add(transaction.getValidationResultSignatures());
+                if(!transaction.getEvent().getAction().name().equals("Algorithm"))vrs.add(transaction.getValidationResultSignatures());
             }
 
             if(DEBUG_LEVEL == 1) {
@@ -997,6 +996,11 @@ public class Node  {
         if(inQuorum()){
             /* We are a Doctor */
             if(block.getBlockId() == 0){ // genesis block
+                try {
+                    Thread.sleep(10000); // WE go sleepy so other nodes can instantiate their BC
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
                 gossipTransaction(new PtTransaction(new Algorithm(algorithmSeed)));
             }
 
@@ -1067,7 +1071,7 @@ public class Node  {
                     quorumNodeIndex = random.nextInt(NUM_NODES); // may be wrong but should still work
                     quorumNode = globalPeers.get(quorumNodeIndex);
                     if(!containsAddress(quorum, quorumNode) && quorumNode.getNodeType().equals(NodeType.Doctor)){
-                        System.out.println("Added doctor to q");
+                        //System.out.println("Added doctor to q");
                         quorum.add(globalPeers.get(quorumNodeIndex));
                     }
                 }
