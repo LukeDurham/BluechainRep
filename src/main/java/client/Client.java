@@ -27,9 +27,11 @@ public class Client {
         fullNodes = new ArrayList<>();
         reader = new BufferedReader(new InputStreamReader(System.in));
         updateLock = new Object();
-        defiClient = new DefiClient(updateLock, reader, myAddress, fullNodes);
+        // defiClient = new DefiClient(updateLock, reader, myAddress, fullNodes);
+        ptClient = new PtClient(updateLock, reader, myAddress, fullNodes);
 
-        if(testIterations > 0) defiClient.testNetwork(testIterations);
+        // if(testIterations > 0) defiClient.testNetwork(testIterations);
+        if(testIterations > 0) ptClient.testNetwork(testIterations);
 
         /* Grab values from config file */
         String configFilePath = "src/main/java/config.properties";

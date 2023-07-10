@@ -27,7 +27,7 @@ public class Prescription extends Event {
         return doctorName;
     }
 
-    public Prescription(String patientUID, String doctorName, String medication, Date date, int amount) {
+    public Prescription(String patientUID, String pharmacyName, String doctorName, String medication, Date date, int amount) {
         super(patientUID, Action.Prescription);
         this.doctorName = doctorName;
         this.date = date;

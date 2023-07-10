@@ -506,6 +506,12 @@ public class Node  {
                     ArrayList<Transaction> transactionsReturned = (ArrayList<Transaction>) message.getMetadata();
                     
                     for(Transaction transaction : transactionsReturned){
+
+                        // Verify DSA sig for patient
+
+                        // PtTransaction ptTransaction = (PtTransaction) transaction;
+                        // ptTransaction.get
+
                         mempool.put(getSHAString(transaction.getUID()), transaction);
                         if(DEBUG_LEVEL == 1) System.out.println("Node " + myAddress.getPort() + ": recieved transactions: " + keysAbsent);
                     }
@@ -525,22 +531,6 @@ public class Node  {
             }
         }
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
     public void constructBlock(){
@@ -581,10 +571,17 @@ public class Node  {
                                 blockchain.size());
                 }else if(USE.equals("Prescription")){
 
+                    HashMap<String, ArrayList<ValidationResultSignature>> answerSigs = new HashMap<>();
+
+                    for(String hash : blockTransactions.keySet()){
+                        PtTransaction ptTransaction = (PtTransaction) blockTransactions.get(hash);
+                        answerSigs.put(hash, ptTransaction.getValidationResultSignatures());
+                    }
+
                     // Room to enable another use case 
                     quorumBlock = new PtBlock(blockTransactions,
                         getBlockHash(blockchain.getLast(), 0),
-                                blockchain.size());
+                                blockchain.size(), answerSigs);
                 }
 
             } catch (NoSuchAlgorithmException e) {
@@ -738,6 +735,12 @@ public class Node  {
     public void sendSkeleton(){
         synchronized (lock){
             //state = 0;
+            ArrayList<ArrayList<ValidationResultSignature>> vrs = new ArrayList<>();
+
+            for(String hash : quorumBlock.getTxList().keySet()){
+                PtTransaction transaction = (PtTransaction) quorumBlock.getTxList().get(hash);
+                vrs.add(transaction.getValidationResultSignatures());
+            }
 
             if(DEBUG_LEVEL == 1) {
                 System.out.println("Node " + myAddress.getPort() + ": sendSkeleton invoked. qSigs " + quorumSigs);
@@ -749,7 +752,7 @@ public class Node  {
 
                 }
                 skeleton = new BlockSkeleton(quorumBlock.getBlockId(),
-                        new ArrayList<String>(quorumBlock.getTxList().keySet()), quorumSigs, getBlockHash(quorumBlock, 0));
+                        new ArrayList<String>(quorumBlock.getTxList().keySet()), quorumSigs, getBlockHash(quorumBlock, 0), vrs);
             } catch (NoSuchAlgorithmException e) {
                 throw new RuntimeException(e);
             }
@@ -860,10 +863,21 @@ public class Node  {
                     throw new RuntimeException(e);
                 }
             }else if(USE.equals("Prescription")){
+                ArrayList<ArrayList<ValidationResultSignature>> listOfVRS = skeleton.getValidationResultSignatures();
+                HashMap<String, ArrayList<ValidationResultSignature>> answerSigs = new HashMap<>();
+
+                if(listOfVRS.size() > 0){
+                    for(ArrayList<ValidationResultSignature> vrsList : listOfVRS){
+                        PtTransaction ptTransaction = (PtTransaction) blockTransactions.get(vrsList.get(0).getVr().getPtTransactionHash()); // Assuming there is at least one VR
+                        ptTransaction.setValidationResultSignatures(vrsList);
+                        answerSigs.put(vrsList.get(0).getVr().getPtTransactionHash(), vrsList);
+                    }
+                }
+
                 try {
                     newBlock = new PtBlock(blockTransactions,
                             getBlockHash(blockchain.getLast(), 0),
-                            blockchain.size());
+                            blockchain.size(), answerSigs);
                 } catch (NoSuchAlgorithmException e) {
                     throw new RuntimeException(e);
                 }

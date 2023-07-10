@@ -21,6 +21,7 @@ public class PtTransaction extends Transaction {
 
     public PtTransaction(Event event){
         this.event = event;
+        UID = event.getPatientUID() + event.getAction().name();
     }
 
     public Event getEvent() {
@@ -29,6 +30,8 @@ public class PtTransaction extends Transaction {
 
     @Override
     public String toString() {
-        return null;
+        return event.getPatientUID() + ", " + event.getAction().name();
     }    
+
+    //getSHAString(transaction.getUID())
 }
