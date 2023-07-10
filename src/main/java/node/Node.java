@@ -63,10 +63,11 @@ public class Node  {
      */
     public Node(NodeType nodeType, String use, int port, int maxPeers, int initialConnections, int numNodes, int quorumSize, int minimumTransaction, int debugLevel) {
         
+        this.nodeType = nodeType;
+
         /* Prescription Tracking */
         if(nodeType.name().equals("Doctor")){
             Random random = new Random();
-            this.nodeType = nodeType;
             algorithmSeed = random.nextInt(100);
         }
         algorithms = new ArrayList<>();
@@ -109,8 +110,10 @@ public class Node  {
         /* Other Data for Stateful Servant */
         myAddress = new Address(port, host, nodeType);
         localPeers = new ArrayList<>();
+        ptClients = new ArrayList<>();
         mempool = new HashMap<>();
         accountsToAlert = new HashMap<>();
+        
 
         /* Public-Private (DSA) Keys*/
         KeyPair keys = generateDSAKeyPair();
@@ -151,7 +154,7 @@ public class Node  {
             // genesisTransactions.put(hashOfTransaction, genesisTransaction);
             addBlock(new DefiBlock(new HashMap<String, Transaction>(), "000000", 0));
         }else if(USE.equals("Prescription")){
-            addBlock(new PtBlock(new HashMap<String, Transaction>(), "000000", 0));
+            addBlock(new PtBlock(new HashMap<String, Transaction>(), "000000", 0, null));
         }
     }
 
@@ -274,7 +277,9 @@ public class Node  {
                 validatorObjects[2] = mempool;
 
             }else{
-                tv = new HCTransactionValidator(); // To be changed to another use case in the future
+                tv = new PtTransactionValidator(); // To be changed to another use case in the future
+                // PtTransaction transaction = (PtTransaction) objects[0];
+                validatorObjects[0] = transaction;
             }
 
             if(!tv.validate(validatorObjects)){
@@ -403,6 +408,8 @@ public class Node  {
             try {
                 oout.writeObject(new Message(new Message(Request.CALCULATION_COMPLETE, vrs)));
                 oout.flush();
+                System.out.println("Node " +myAddress.getPort() + ": Sent calculation result " + vr.isValid());
+
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -510,7 +517,7 @@ public class Node  {
                         // Verify DSA sig for patient
 
                         // PtTransaction ptTransaction = (PtTransaction) transaction;
-                        // ptTransaction.get
+                        // ptTransaction.getValidationResultSignatures();
 
                         mempool.put(getSHAString(transaction.getUID()), transaction);
                         if(DEBUG_LEVEL == 1) System.out.println("Node " + myAddress.getPort() + ": recieved transactions: " + keysAbsent);
@@ -866,6 +873,9 @@ public class Node  {
                 ArrayList<ArrayList<ValidationResultSignature>> listOfVRS = skeleton.getValidationResultSignatures();
                 HashMap<String, ArrayList<ValidationResultSignature>> answerSigs = new HashMap<>();
 
+                System.out.println("Node " +myAddress.getPort() + ": Trying to reconstruct block with skeleton");
+
+
                 if(listOfVRS.size() > 0){
                     for(ArrayList<ValidationResultSignature> vrsList : listOfVRS){
                         PtTransaction ptTransaction = (PtTransaction) blockTransactions.get(vrsList.get(0).getVr().getPtTransactionHash()); // Assuming there is at least one VR
@@ -944,17 +954,34 @@ public class Node  {
                 }
             }
         
-        }else if (USE.equals("Prescription") && nodeType.name().equals("Patient")){
+        }else if (USE.equals("Prescription")){
+
+            ArrayList<PtTransaction> ptTransactions = new ArrayList<>();
 
             for(String key : keys){ // For each tx key
                 PtTransaction transactionInList = (PtTransaction) txMap.get(key); // cast to our PT tx
-                if(transactionInList.getEvent().getAction().name().equals("Algorithm")){ // if its an algo
-                    algorithms.add((Algorithm)transactionInList.getEvent()); // add to list
-                    if(algorithms.size() == 3){ // if we have 3
-                        Random random = new Random();
-                        algorithmSeed = algorithms.get(random.nextInt(3)).getAlgorithmSeed(); // pick 1
+                ptTransactions.add(transactionInList);
+            }
+
+            if(nodeType.name().equals("Patient")){
+                System.out.println("Patient looking in block for algo");
+                for(String key : keys){ // For each tx key
+                    PtTransaction transactionInList = (PtTransaction) txMap.get(key); // cast to our PT tx
+                    if(transactionInList.getEvent().getAction().name().equals("Algorithm")){ // if its an algo
+                        algorithms.add((Algorithm)transactionInList.getEvent()); // add to list
+                        System.out.println("Patient added algorithm");
+                        if(algorithms.size() == 3){ // if we have 3
+                            Random random = new Random();
+                            algorithmSeed = algorithms.get(random.nextInt(3)).getAlgorithmSeed(); // pick 1
+                            System.out.println("Patient selected algorithm");
+                        }
                     }
                 }
+            }
+
+            for(Address address : ptClients){
+                System.out.println("Patient submitted txList to client");
+                Messager.sendOneWayMessage(address, new Message(Request.ALERT_WALLET, ptTransactions), myAddress);
             }
         }
 
@@ -1040,6 +1067,7 @@ public class Node  {
                     quorumNodeIndex = random.nextInt(NUM_NODES); // may be wrong but should still work
                     quorumNode = globalPeers.get(quorumNodeIndex);
                     if(!containsAddress(quorum, quorumNode) && quorumNode.getNodeType().equals(NodeType.Doctor)){
+                        System.out.println("Added doctor to q");
                         quorum.add(globalPeers.get(quorumNodeIndex));
                     }
                 }
@@ -1055,7 +1083,8 @@ public class Node  {
 
     public void alertWallet(String accountPubKey, Address address){
         synchronized(accountsLock){
-            accountsToAlert.put(accountPubKey, address);
+            if(USE.equals("Defi"))accountsToAlert.put(accountPubKey, address);
+            if(USE.equals("Prescription")) ptClients.add(address);
         }
     }
 
@@ -1130,8 +1159,7 @@ public class Node  {
     private final int MAX_PEERS, NUM_NODES, QUORUM_SIZE, MIN_CONNECTIONS, DEBUG_LEVEL, MINIMUM_TRANSACTIONS;
     private final Object lock, quorumLock, memPoolLock, quorumReadyVotesLock, memPoolRoundsLock, sigRoundsLock, blockLock, accountsLock;
     private int quorumReadyVotes, memPoolRounds, algorithmSeed;
-    private ArrayList<Address> globalPeers;
-    private ArrayList<Address> localPeers;
+    private ArrayList<Address> globalPeers, localPeers, ptClients;
     private ArrayList<Algorithm> algorithms;
     private HashMap<String, Transaction> mempool;
     HashMap<String, Integer> accounts;
@@ -1143,7 +1171,7 @@ public class Node  {
     private PrivateKey privateKey;
     private int state;
     protected NodeType nodeType;
-    private final String USE;
+    public final String USE;
 
 }
 

@@ -1,6 +1,8 @@
 package node.blockchain.prescription;
 
-public abstract class Event {
+import java.io.Serializable;
+
+public abstract class Event implements Serializable{
 
     public enum Action {
         Prescription,

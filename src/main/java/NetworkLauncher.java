@@ -63,8 +63,12 @@ public class NetworkLauncher {
                 timedWaitDelay = Integer.parseInt(args[1]);
             }
 
-            for (int i = startingPort; i < startingPort + numNodes; i++) {
+            for (int i = startingPort; i < (startingPort) + (numNodes/2); i++) {
                 nodes.add(new Node(NodeType.Doctor, use, i, maxConnections, minConnections, numNodes, quorumSize, minimumTransactions, debugLevel));
+            }
+
+            for (int i = (startingPort) + (numNodes/2); i < startingPort + numNodes; i++) {
+                nodes.add(new Node(NodeType.Patient, use, i, maxConnections, minConnections, numNodes, quorumSize, minimumTransactions, debugLevel));
             }
 
 

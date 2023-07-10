@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Properties; 
 import java.util.regex.Pattern;
 import node.blockchain.merkletree.MerkleTreeProof;
+import node.blockchain.prescription.PtTransaction;
 import node.communication.Address;
 import node.communication.messaging.Message;
 
@@ -19,7 +20,9 @@ public class Client {
     Object updateLock; // Lock for multithreading
     boolean test; // Boolean for test vs normal output
     String use;
+    PtClient ptClient;
     DefiClient defiClient;
+
 
     public Client(int port, int testIterations){
 
@@ -31,7 +34,7 @@ public class Client {
         ptClient = new PtClient(updateLock, reader, myAddress, fullNodes);
 
         // if(testIterations > 0) defiClient.testNetwork(testIterations);
-        if(testIterations > 0) ptClient.testNetwork(testIterations);
+        //if(testIterations > 0) ptClient.testNetwork(testIterations);
 
         /* Grab values from config file */
         String configFilePath = "src/main/java/config.properties";
@@ -67,7 +70,7 @@ public class Client {
                 String hostname = addressStrings[0];
                 String portString[] = addressStrings[1].split((Pattern.quote(".")));
                 int fullNodePort = Integer.valueOf(portString[0]);
-                fullNodes.add(new Address(fullNodePort, hostname));
+                fullNodes.add(new Address(fullNodePort, hostname, null));
             }
         }
 
@@ -99,7 +102,7 @@ public class Client {
         }
 
         String host = ip.getHostAddress();
-        myAddress = new Address(port, host);
+        myAddress = new Address(port, host, null);
 
         System.out.println("Wallet bound to " + myAddress);
 
@@ -157,6 +160,7 @@ public class Client {
                 /* Submit Transaction */
                 case("t"):
                     if(use.equals("Defi")) defiClient.submitTransaction();
+                    if(use.equals("Prescription")) ptClient.submitPrescription();
                     break;
 
                 /* Print accounts (or something similar depends on use) */
@@ -187,7 +191,7 @@ public class Client {
             String hostname = reader.readLine();
             System.out.println("Full Node port?: ");
             String port = reader.readLine();
-            fullNodes.add(new Address(Integer.valueOf(port), hostname));
+            fullNodes.add(new Address(Integer.valueOf(port), hostname, null));
         }else if(response.equals("r")){
             System.out.println("Full Node index to remove?: \n" + fullNodes);
             int index = Integer.parseInt(reader.readLine());
@@ -222,8 +226,14 @@ public class Client {
                     Message incomingMessage = (Message) oin.readObject();
                     
                     if(incomingMessage.getRequest().name().equals("ALERT_WALLET")){
-                        MerkleTreeProof mtp = (MerkleTreeProof) incomingMessage.getMetadata();
-                        defiClient.updateAccounts(mtp);
+                        if(use.equals("Defi")){
+                            MerkleTreeProof mtp = (MerkleTreeProof) incomingMessage.getMetadata();
+                            defiClient.updateAccounts(mtp);
+                        }else if(use.equals("Prescription")){
+                            ArrayList<PtTransaction> ptTransactions = (ArrayList<PtTransaction>) incomingMessage.getMetadata();
+                            // defiClient.updateAccounts(mtp);
+                        }
+                        
                     }
                 } catch (IOException e) {
                     System.out.println(e);
