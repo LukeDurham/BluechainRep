@@ -69,6 +69,7 @@ public class Node  {
         if(nodeType.name().equals("Doctor")){
             Random random = new Random();
             algorithmSeed = random.nextInt(100);
+            
         }
         algorithms = new ArrayList<>();
 
@@ -424,25 +425,38 @@ public class Node  {
             stateChangeRequest(2);            
             
             HashSet<String> keys = new HashSet<String>(mempool.keySet());
-
+            Boolean foundAPatient = false;
+            System.out.println("Node: " + myAddress.getPort() + "(Doctor): Sending mempool");
 
             for(String hash : keys){
+                System.out.println("Node: " + myAddress.getPort() + "(Doctor): Processing keys");
+
                 PtTransaction ptTransaction = (PtTransaction) mempool.get(hash);
-                ArrayList<ValidationResultSignature> vrs = new ArrayList<>();
 
-                for(Address address : globalPeers){
-                    if(address.getNodeType().name().equals("Patient")){
-                        Message reply = Messager.sendTwoWayMessage(address, new Message(Request.REQUEST_CALCULATION, hash), myAddress);
+                if(ptTransaction.getEvent().getAction().name().equals("Prescription")){
+                    ArrayList<ValidationResultSignature> vrs = new ArrayList<>();
 
-                        if(reply.getRequest().name().equals("CALCULATION_COMPLETE")){
-                            ValidationResultSignature vr = (ValidationResultSignature) reply.getMetadata();
-                            vrs.add(vr);
+                    for(Address address : globalPeers){
+                        if(address.getNodeType().name().equals("Patient")){
+                            foundAPatient = true;
+                            System.out.println("Node: " + myAddress.getPort() + "(Doctor): About to send out calc request to patient");
+                            Message reply = Messager.sendTwoWayMessage(address, new Message(Request.REQUEST_CALCULATION, hash), myAddress);
+                            System.out.println("Node: " + myAddress.getPort() + "(Doctor): Sent out calc request to patient");
+
+                            if(reply.getRequest().name().equals("CALCULATION_COMPLETE")){
+                                ValidationResultSignature vr = (ValidationResultSignature) reply.getMetadata();
+                                vrs.add(vr);
+                                System.out.println("Node: " + myAddress.getPort() + "(Doctor): Added vr to vrs from patient");
+                            }else{
+                                System.out.println("Node: " + myAddress.getPort() + "(Doctor): Calc not complete?");
+                            }
                         }
                     }
-                }
-                ptTransaction.setValidationResultSignatures(vrs);
-            }
 
+                    if(!foundAPatient)System.out.println("Node: " + myAddress.getPort() + "(Doctor): never found a patient");
+                    ptTransaction.setValidationResultSignatures(vrs);
+                }   
+            }
 
             if(DEBUG_LEVEL == 1) System.out.println("Node " + myAddress.getPort() + ": sendMempoolHashes invoked");
             
@@ -968,18 +982,18 @@ public class Node  {
                     PtTransaction transactionInList = (PtTransaction) txMap.get(key); // cast to our PT tx
                     if(transactionInList.getEvent().getAction().name().equals("Algorithm")){ // if its an algo
                         algorithms.add((Algorithm)transactionInList.getEvent()); // add to list
-                        System.out.println("Patient added algorithm");
+                        System.out.println("Node " + myAddress.getPort() + "(Patient): added algorithm");
                         if(algorithms.size() == 3){ // if we have 3
                             Random random = new Random();
                             algorithmSeed = algorithms.get(random.nextInt(3)).getAlgorithmSeed(); // pick 1
-                            System.out.println("Patient selected algorithm");
+                            System.out.println("Node " + myAddress.getPort() + "(Patient): selected algorithm");
                         }
                     }
                 }
             }
 
             for(Address address : ptClients){
-                System.out.println("Patient submitted txList to client");
+                System.out.println("Node " + myAddress.getPort() + ": submitted txList to client");
                 Messager.sendOneWayMessage(address, new Message(Request.ALERT_WALLET, ptTransactions), myAddress);
             }
         }
@@ -1001,7 +1015,8 @@ public class Node  {
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
-                gossipTransaction(new PtTransaction(new Algorithm(algorithmSeed)));
+                gossipTransaction(new PtTransaction(new Algorithm(algorithmSeed), String.valueOf(System.currentTimeMillis())));
+                System.out.println("Node " + myAddress.getPort() + "(Doctor): submitted algorithm");
             }
 
 

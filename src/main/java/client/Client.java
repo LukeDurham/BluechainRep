@@ -31,7 +31,6 @@ public class Client {
         reader = new BufferedReader(new InputStreamReader(System.in));
         updateLock = new Object();
         // defiClient = new DefiClient(updateLock, reader, myAddress, fullNodes);
-        ptClient = new PtClient(updateLock, reader, myAddress, fullNodes);
 
         // if(testIterations > 0) defiClient.testNetwork(testIterations);
         //if(testIterations > 0) ptClient.testNetwork(testIterations);
@@ -111,6 +110,9 @@ public class Client {
 
         Acceptor acceptor = new Acceptor(this);
         acceptor.start();
+
+        ptClient = new PtClient(updateLock, reader, myAddress, fullNodes);
+
     }
 
     public static void main(String[] args) throws IOException{

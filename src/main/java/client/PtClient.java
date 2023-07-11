@@ -53,9 +53,12 @@ public class PtClient {
         System.out.println("How many?");
         int amount = Integer.valueOf(reader.readLine()); ///dosage
 
-        Account chosenPharmacy = null;
         Date date = new Date();
-        submitTransaction(new PtTransaction(new Prescription("TestPatient", pharmacy, doctorName, medication, dosage, new Date(date.getTime()), amount)), myAddress);
+
+        submitTransaction(new PtTransaction(
+            new Prescription("TestPatient", pharmacy, doctorName, medication, dosage, new Date(date.getTime()), 
+            amount), String.valueOf(System.currentTimeMillis())), fullNodes.get(0));
+
         System.out.println("PTClient submitted prescription");
 
     }

@@ -52,8 +52,6 @@ public class NetworkLauncher {
             int debugLevel = Integer.parseInt(prop.getProperty("DEBUG_LEVEL"));
             String use = prop.getProperty("USE");
 
-
-
             /* List of node objects for the launcher to start*/
             ArrayList<Node> nodes = new ArrayList<Node>();
 
@@ -65,10 +63,12 @@ public class NetworkLauncher {
 
             for (int i = startingPort; i < (startingPort) + (numNodes/2); i++) {
                 nodes.add(new Node(NodeType.Doctor, use, i, maxConnections, minConnections, numNodes, quorumSize, minimumTransactions, debugLevel));
+                System.out.println("Added Doctor");
             }
 
             for (int i = (startingPort) + (numNodes/2); i < startingPort + numNodes; i++) {
                 nodes.add(new Node(NodeType.Patient, use, i, maxConnections, minConnections, numNodes, quorumSize, minimumTransactions, debugLevel));
+                System.out.println("Added Patient");
             }
 
 
